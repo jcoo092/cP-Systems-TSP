@@ -8,48 +8,32 @@ let E = // Specification of set of E objects
        [| 2; 4; 5; 7; 0; |];
    |]
 
-type s = { r: int; u: Set<int>; p: list<int>; c: int }
-type z = {p: list<int>; c: int}
+type s = int * Set<int> * list<int> * int // (r, u, p, c)
+type z = list<int> * int // (p, c)
 
-let N = Array.length E
-let R = 0  // could start from random root
+let visit (si:s) (u:Set<int>): list<s> =
+    let r, _, f::p, c = si
+    [for t in u do
+        let w = E.[f].[t]
+        if w < infty then
+            yield (r, Set.remove t u, t :: f :: p, c + w) ]
 
-let printNode (n:s) = 
-     printfn "Node path: %A" (List.rev n.p)
-     printfn "Unvisisted nodes: %A" n.u
-     printfn "Node cost so far: %i\n" n.c
+let rec sgoal (slist: list<s>): list<s> =
+    slist |> List.collect (fun si ->
+        let r, u, _, _ = si
+        if Set.isEmpty u 
+        then visit si (set [r])
+        else sgoal (visit si u))
 
-let create_zs (tree : list<s>) = 
-    tree |>
-    List.collect (fun n ->
-        let W = E.[List.head n.p].[R]
-        if W < infty then
-            [{p = R :: n.p; c = n.c + W}]
-        else
-            []
-    )
-let next (n:s) = // Create each new s object
-    [ 
-        let F = List.head n.p
-        for T in n.u do  // always v <> v'
-            let W = E.[F].[T]
-            if W < infty then 
-                yield { r = R; u = Set.remove T n.u; p = T :: n.p; c = n.c+ W }
-    ]        
+let hgoal (r:int) (y:Set<int>): list<z> =
+    [(r, y, [r], 0)] |> sgoal |> List.map (fun (r, u, p, c) -> (p, c))
+    
+let minh (h: list<z>): z =
+    h |> List.minBy (fun (p, c) -> c)
+    
+let go () = 
+    let r = 0
+    let y = set [0..(Array.length E - 1)] |> Set.remove r
+    hgoal r y |> minh |> printfn "%A"
 
-let rec build (tree : list<s>) = 
-    if tree.Head.u.IsEmpty then
-        create_zs tree
-    else
-        //List.iter printNode tree // Optional ability to print all objects at the current step
-        let newtree = tree |> List.collect next
-        build(newtree)
-
-let Y = set [ for F in 0..N-1 do if F <> R then yield F ]
-let start = {r = R; u = Y; p = R :: []; c = 0}
-let zs = [start] |> build
-
-let minW = zs |> List.map (fun n -> n.c) |> List.min // Select and output minimum cost and associated path (rule (5))
-let minZ = zs |> List.filter (fun n -> n.c = minW)
-printfn "Cost: %i" minW
-printfn "Path: %A\n" (List.rev minZ.Head.p) // Print arbitrary minimum-cost path
+go ()
