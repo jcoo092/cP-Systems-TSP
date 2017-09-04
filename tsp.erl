@@ -35,12 +35,11 @@ hgoal(R, V, E) ->
     lists:map(fun (X) -> #z{p = X#s.p, c = X#s.c} end, S).
 
 sgoal(S, R, E) ->
-    lists:flatmap(fun(X) ->
-        case sets:size(X#s.u) > 0 of
-            false -> visit(X, sets:from_list([R]), E);
-            true -> sgoal(visit(X, X#s.u, E), R, E)
-        end 
-    end, S).
+    First = first(S),
+    case sets:size(First#s.u) > 0 of
+        false -> lists:flatmap(fun (X) -> visit(X, sets:from_list([R]), E) end, S);
+        true -> sgoal(lists:flatmap(fun (X) -> visit(X, X#s.u, E) end, S), R, E)
+    end.
 
 visit(S, U, E) ->
     Ef = [Q || Q <- E, Q#e.f == first(S#s.p), sets:is_element(Q#e.t, U)],

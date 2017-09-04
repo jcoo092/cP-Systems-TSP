@@ -1,5 +1,3 @@
-/* Written by Radu Nicolescu, University of Auckland, August 2017 */
-
 e(1, 2, 1).
 e(1, 3, 3).
 e(1, 5, 2).
