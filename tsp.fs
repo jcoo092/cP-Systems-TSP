@@ -1,36 +1,37 @@
-type e = {f: int; t: int; c: int} // e(f, t, w)
+type e = int * int * int // (f, t, w)
 type s = int * Set<int> * list<int> * int // (r, u, p, c)
 type z = list<int> * int // (p, c)
 
 let E = [|
-    {f = 1; t = 2; c = 1};
-    {f = 1; t = 3; c = 3};
-    {f = 1; t = 5; c = 2};
-    {f = 2; t = 1; c = 1};
-    {f = 2; t = 4; c = 6};
-    {f = 2; t = 5; c = 4};
-    {f = 3; t = 1; c = 3};
-    {f = 3; t = 4; c = 8};
-    {f = 3; t = 5; c = 5};
-    {f = 4; t = 2; c = 6};
-    {f = 4; t = 3; c = 8};
-    {f = 4; t = 5; c = 7};
-    {f = 5; t = 1; c = 2};
-    {f = 5; t = 2; c = 4};
-    {f = 5; t = 3; c = 5};
-    {f = 5; t = 4; c = 7}
+    (1, 2, 1);
+    (1, 3, 3);
+    (1, 5, 2);
+    (2, 1, 1);
+    (2, 4, 6);
+    (2, 5, 4);
+    (3, 1, 3);
+    (3, 4, 8);
+    (3, 5, 5);
+    (4, 2, 6);
+    (4, 3, 8);
+    (4, 5, 7);
+    (5, 1, 2);
+    (5, 2, 4);
+    (5, 3, 5);
+    (5, 4, 7)
 |]
 
 let snd4 (_, b, _, _) = b
+let thd3 (_, _, c) = c
 
 let visit (si:s) (u:Set<int>): list<s> =
-    let r, _, fx::p, c = si
-    [for tx in u do
+    let r, _, f::p, c = si
+    [for t in u do
         let edge = Array.choose (fun x -> match x with
-                                          | {f = f'; t = t'; c = W} when f' = fx && t' = tx -> Some(x)
+                                          | (f', t', _) when f' = f && t' = t -> Some(x)
                                           | _ -> None) E
         if Array.length edge > 0 then
-            yield (r, Set.remove tx u, tx :: fx :: p, c + edge.[0].c) ]
+            yield (r, Set.remove t u, t :: f :: p, c + thd3 edge.[0]) ]
 
 let rec sgoal (slist: list<s>): list<s> =
     let r, u, _, _ = List.head slist
