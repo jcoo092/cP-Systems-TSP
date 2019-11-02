@@ -1,0 +1,3 @@
+-record(e, {f, t, c}).
+-record(s, {r, u, p, c}).
+-record(z, {p, c}).
