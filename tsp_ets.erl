@@ -40,4 +40,18 @@ start(Tab, [H | T]) ->
 explore(Tab) ->
     Ss = ets:select(Tab,
 		    [{#s{_ = '_'}, [],
-		      ['$$']}]).    % actually probably want to use select replace on them...
+		      ['$_']}]),    % actually probably want to use select replace on them...
+    case (hd(Ss))#s.u of
+      [] -> makeZs(Tab);
+      _ ->
+	  NewSs = lists:flatmap(advanceS, Ss),
+	  ets:insert(Tab, NewSs)
+    end,
+    explore(Tab).
+
+makeZs(Tab) -> 5.
+
+advanceS(S) ->
+    U = S#s.u,
+    P = hd(S#s.p),
+    5. % Need to filter out the 'u's for which there is no e that goes from P to U
