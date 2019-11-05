@@ -2,14 +2,15 @@
 
 -include("ets_h.hrl").
 
--export([run/1]).
+-export([optionOne/0, run/1]).
 
 run(Selector) ->
     Es = case Selector of
 	   1 -> optionOne();
 	   2 -> optionTwo()
 	 end,
-    Tab = ets:new(tsp, [duplicate_bag, {keypos, #e.f}]),
+    Tab = ets:new(tsp,
+		  [duplicate_bag, {keypos, #e.f}, private]),
     ets:insert(Tab, Es),
     start(Tab, [1, 2, 3, 4, 5]).
 
@@ -44,14 +45,27 @@ explore(Tab) ->
     case (hd(Ss))#s.u of
       [] -> makeZs(Tab);
       _ ->
-	  NewSs = lists:flatmap(advanceS, Ss),
+	  NewSs = lists:flatmap(fun (S) -> advanceS(Tab, S) end,
+				Ss),
 	  ets:insert(Tab, NewSs)
     end,
     explore(Tab).
 
 makeZs(Tab) -> 5.
 
-advanceS(S) ->
-    U = S#s.u,
+advanceS(Tab, S) ->
+    Us = S#s.u,
     P = hd(S#s.p),
-    5. % Need to filter out the 'u's for which there is no e that goes from P to U
+    Es = lists:flatmap(fun (U) ->
+			       ets:select(Tab,
+					  [{#e{f = '$1', t = '$2', c = '$3'},
+					    [{'==', P, '$1'}, {'==', U, '$2'}],
+					    % [{#e{f = '$1', t = '$2', _ = '_'}, [{'=:=', P, '$1'}],
+					    [{'$2', '$3'}]}])
+		       end,
+		       Us),
+    [S#s{u = lists:delete(T, S#s.u), p = [T | S#s.p],
+	 c = S#s.c + C}
+     || {T, C}
+	    <- Es]. % Need to filter out the 'u's for which there is no e that goes from P to U
+		       % lists:map(fun ({T, C}) -> S#s{t = T, c = C} end, Es).
