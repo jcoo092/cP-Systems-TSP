@@ -7,14 +7,24 @@
 -export([run/1]).
 
 run(Selector) ->
+    Numnodes = case Selector of
+		 1 -> 5;
+		 2 -> 5;
+		 3 -> 10
+	       end,
+    run(Selector, Numnodes).
+
+run(Selector, Numnodes) ->
     Es = case Selector of
 	   1 -> optionOne();
-	   2 -> optionTwo()
+	   2 -> optionTwo();
+	   3 -> optionThree(Numnodes)
 	 end,
     Tab = ets:new(tsp,
 		  [duplicate_bag, {keypos, #e.f}, private]),
+    io:format("Tab is ~p~n", [Tab]),
     ets:insert(Tab, Es),
-    start(Tab, [1, 2, 3, 4, 5]).
+    start(Tab, lists:seq(1, Numnodes)).
 
 optionOne() ->
     [#e{f = 1, t = 2, c = 1}, #e{f = 1, t = 3, c = 3},
@@ -36,6 +46,10 @@ optionTwo() ->
      #e{f = 5, t = 2, c = 4}, #e{f = 5, t = 3, c = 5},
      #e{f = 5, t = 4, c = 9}].
 
+optionThree(X) ->
+    [#e{f = F, t = T, c = 1}
+     || F <- lists:seq(1, X), T <- lists:seq(1, X), F /= T].
+
 start(Tab, [H | T]) ->
     ets:insert(Tab,
 	       #s{r = H, u = ordsets:from_list(T), p = [H], c = 0}),
@@ -49,11 +63,9 @@ explore(Tab) ->
       false ->
 	  NewSs = lists:flatmap(fun (S) -> advanceS(Tab, S) end,
 				Ss),
-	  %   io:format("NewSs:~n~p~n", [NewSs]),
 	  ets:select_delete(Tab,
-			    % [{[#s{_ = '_'}], [],
-			    %   [{true}]}]), % essentially, rule 4
 			    ets:fun2ms(fun (#s{}) -> true end)),
+	  % essentially, rule 4
 	  ets:insert(Tab, NewSs),
 	  explore(Tab);
       true -> finishUp(Tab, Ss)
@@ -62,7 +74,7 @@ explore(Tab) ->
 finishUp(Tab, Ss) ->
     Zs = lists:flatmap(fun (S) -> returnToStart(Tab, S) end,
 		       Ss),
-    ets:delete(Tab),
+    io:format("Tab deleted? ~p~n", [ets:delete(Tab)]),
     MinZ = findMinZ(Zs),
     io:format("Lowest cost is ~p~nShortest route is "
 	      "~p~n",
@@ -73,10 +85,6 @@ advanceS(Tab, S) ->
     P = hd(S#s.p),
     Es = lists:flatmap(fun (U) ->
 			       ets:select(Tab,
-					  %   [{#e{f = '$1', t = '$2', c = '$3'},
-					  %     [{'==', P, '$1'}, {'==', U, '$2'}],
-					  %     % [{#e{f = '$1', t = '$2', _ = '_'}, [{'=:=', P, '$1'}],
-					  %     [{'$2', '$3'}]}])
 					  ets:fun2ms(fun (#e{f = F, t = T,
 							     c = C})
 							     when F == P,
@@ -87,10 +95,7 @@ advanceS(Tab, S) ->
 		       ordsets:from_list(Us)),
     [S#s{u = ordsets:del_element(T, S#s.u), p = [T | S#s.p],
 	 c = S#s.c + C}
-     || {T, C}
-	    <- Es]. % Need to filter out the 'u's for which there is no e that goes from P to U
-
-                   % lists:map(fun ({T, C}) -> S#s{t = T, c = C} end, Es).
+     || {T, C} <- Es].
 
 returnToStart(Tab, S) ->
     P = hd(S#s.p),
