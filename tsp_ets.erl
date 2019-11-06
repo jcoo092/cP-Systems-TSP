@@ -10,7 +10,7 @@ run(Selector) ->
     Numnodes = case Selector of
 		 1 -> 5;
 		 2 -> 5;
-		 3 -> 10
+		 3 -> 5
 	       end,
     run(Selector, Numnodes).
 
@@ -21,8 +21,8 @@ run(Selector, Numnodes) ->
 	   3 -> optionThree(Numnodes)
 	 end,
     Tab = ets:new(tsp,
-		  [duplicate_bag, {keypos, #e.f}, private]),
-    io:format("Tab is ~p~n", [Tab]),
+		  [duplicate_bag, {keypos, 1}, private]),
+    % io:format("Tab is ~p~n", [Tab]),
     ets:insert(Tab, Es),
     start(Tab, lists:seq(1, Numnodes)).
 
@@ -47,7 +47,7 @@ optionTwo() ->
      #e{f = 5, t = 4, c = 9}].
 
 optionThree(X) ->
-    [#e{f = F, t = T, c = 1}
+    [#e{f = F, t = T, c = rand:uniform(10)}
      || F <- lists:seq(1, X), T <- lists:seq(1, X), F /= T].
 
 start(Tab, [H | T]) ->
@@ -74,7 +74,8 @@ explore(Tab) ->
 finishUp(Tab, Ss) ->
     Zs = lists:flatmap(fun (S) -> returnToStart(Tab, S) end,
 		       Ss),
-    io:format("Tab deleted? ~p~n", [ets:delete(Tab)]),
+    % io:format("Tab deleted? ~p~n", [ets:delete(Tab)]),
+    ets:delete(Tab),
     MinZ = findMinZ(Zs),
     io:format("Lowest cost is ~p~nShortest route is "
 	      "~p~n",
