@@ -2,7 +2,7 @@
 
 -include("ets_h.hrl").
 
--include_lib("stdlib/include/ms_transform.hrl").
+% -include_lib("stdlib/include/ms_transform.hrl").
 
 -export([run/1]).
 
@@ -10,7 +10,7 @@ run(Selector) ->
     Numnodes = case Selector of
 		 1 -> 5;
 		 2 -> 5;
-		 3 -> 5
+		 3 -> 9
 	       end,
     run(Selector, Numnodes).
 
@@ -22,9 +22,12 @@ run(Selector, Numnodes) ->
 	 end,
     Tab = ets:new(tsp,
 		  [duplicate_bag, {keypos, 1}, private]),
-    % io:format("Tab is ~p~n", [Tab]),
     ets:insert(Tab, Es),
-    start(Tab, lists:seq(1, Numnodes)).
+    % start(Tab, lists:seq(1, Numnodes)).
+    ets:insert(Tab,
+	       #s{r = 1, u = ordsets:from_list(lists:seq(2, Numnodes)),
+		  p = [1], c = 0}),
+    explore(Tab).
 
 optionOne() ->
     [#e{f = 1, t = 2, c = 1}, #e{f = 1, t = 3, c = 3},
@@ -50,10 +53,10 @@ optionThree(X) ->
     [#e{f = F, t = T, c = rand:uniform(10)}
      || F <- lists:seq(1, X), T <- lists:seq(1, X), F /= T].
 
-start(Tab, [H | T]) ->
-    ets:insert(Tab,
-	       #s{r = H, u = ordsets:from_list(T), p = [H], c = 0}),
-    explore(Tab).
+% start(Tab, [H | T]) ->
+%     ets:insert(Tab,
+% 	       #s{r = H, u = ordsets:from_list(T), p = [H], c = 0}),
+%     explore(Tab).
 
 explore(Tab) ->
     Ss = ets:select(Tab,
@@ -64,7 +67,9 @@ explore(Tab) ->
 	  NewSs = lists:flatmap(fun (S) -> advanceS(Tab, S) end,
 				Ss),
 	  ets:select_delete(Tab,
-			    ets:fun2ms(fun (#s{}) -> true end)),
+			    % ets:fun2ms(fun (#s{}) -> true end)),
+			    [{#s{r = '_', u = '_', p = '_', c = '_'}, [],
+			      [true]}]),
 	  % essentially, rule 4
 	  ets:insert(Tab, NewSs),
 	  explore(Tab);
@@ -74,7 +79,6 @@ explore(Tab) ->
 finishUp(Tab, Ss) ->
     Zs = lists:flatmap(fun (S) -> returnToStart(Tab, S) end,
 		       Ss),
-    % io:format("Tab deleted? ~p~n", [ets:delete(Tab)]),
     ets:delete(Tab),
     MinZ = findMinZ(Zs),
     io:format("Lowest cost is ~p~nShortest route is "
@@ -86,12 +90,15 @@ advanceS(Tab, S) ->
     P = hd(S#s.p),
     Es = lists:flatmap(fun (U) ->
 			       ets:select(Tab,
-					  ets:fun2ms(fun (#e{f = F, t = T,
-							     c = C})
-							     when F == P,
-								  T == U ->
-							     {T, C}
-						     end))
+					  %   ets:fun2ms(fun (#e{f = F, t = T,
+					  % 		     c = C})
+					  % 		     when F == P,
+					  % 			  T == U ->
+					  % 		     {T, C}
+					  % 	     end))
+					  [{#e{f = '$1', t = '$2', c = '$3'},
+					    [{'==', '$1', P}, {'==', '$2', U}],
+					    [{{'$2', '$3'}}]}])
 		       end,
 		       ordsets:from_list(Us)),
     [S#s{u = ordsets:del_element(T, S#s.u), p = [T | S#s.p],
@@ -102,10 +109,12 @@ returnToStart(Tab, S) ->
     P = hd(S#s.p),
     R = S#s.r,
     Es = ets:select(Tab,
-		    ets:fun2ms(fun (#e{f = F, t = T, c = C})
-				       when F == P, T == R ->
-				       {T, C}
-			       end)),
+		    % ets:fun2ms(fun (#e{f = F, t = T, c = C})
+		    % 	       when F == P, T == R ->
+		    % 	       {T, C}
+		    %        end)),
+		    [{#e{f = '$1', t = '$2', c = '$3'},
+		      [{'==', '$1', P}, {'==', '$2', R}], [{{'$2', '$3'}}]}]),
     % There should be only one, but it'll come back as a list anyway
     case Es of
       [] -> [];
@@ -113,9 +122,9 @@ returnToStart(Tab, S) ->
 	  {T, C} = Head, [#z{p = [T | S#s.p], c = S#s.c + C}]
     end.
 
-findMinZ(Zs) ->
-    lists:foldl(fun (Z, Acc) -> findMinZ(Z, Acc) end,
-		hd(Zs), Zs).
+findMinZ([H | Zs]) ->
+    lists:foldl(fun (Z, Acc) -> findMinZ(Z, Acc) end, H,
+		Zs).
 
 findMinZ(X, Y) when X#z.c > Y#z.c -> Y;
 findMinZ(X, _Y) -> X.
