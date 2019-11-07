@@ -8,7 +8,7 @@ run(Selector) ->
     Numnodes = case Selector of
 		 1 -> 5;
 		 2 -> 5;
-		 3 -> 10
+		 3 -> 9
 	       end,
     run(Selector, Numnodes).
 
@@ -53,7 +53,6 @@ optionThree(X) ->
 explore(Tab) ->
     Ss = ets:lookup(Tab,
 		    s),    % actually probably want to use select replace on them...
-    % Ss = ets:take(Tab, s),
     case ordsets:is_empty((hd(Ss))#s.u) of
       false ->
 	  NewSs = lists:flatmap(fun (S) -> advanceS(Tab, S) end,
@@ -68,11 +67,9 @@ explore(Tab) ->
     end.
 
 finishUp(Tab) ->
-    % Zs = lists:flatmap(fun (S) -> makeZ(Tab, S) end, Ss),
     Ss = ets:take(Tab, s),
     lists:foreach(fun (S) -> makeZ(Tab, S) end, Ss),
     MinZ = findMinZ(Tab),
-    % io:format("MinZ looks like: ~p~n", [MinZ]),
     ets:delete(Tab),
     io:format("Lowest cost is ~p~nShortest route is "
 	      "~p~n",
@@ -106,36 +103,21 @@ makeZ(Tab, S) ->
 	  ets:insert(Tab, #z{p = [T | S#s.p], c = S#s.c + C})
     end.
 
-% findMinZ([H | Zs]) ->
-%     lists:foldl(fun (Z, Acc) -> findMinZ(Z, Acc) end, H,
-% 		Zs).
-
-% findMinZ(X, Y) when X#z.c > Y#z.c -> Y;
-% findMinZ(X, _Y) -> X.
-
 findMinZ(Tab) ->
     findMinZ(Tab,
 	     ets:select(Tab, [{#z{p = '_', c = '_'}, [], ['$_']}],
 			1)).
 
 findMinZ(Tab, {[Smallest | _], _}) ->
-    % io:format("Inside findMinZ/2.~nSmallest looks like: "
-    %       "~p~n",
-    %       [Smallest]),
     SmallestC = Smallest#z.c,
     ets:select_delete(Tab,
 		      [{#z{p = '_', c = '$1'}, ['>', '$1', SmallestC],
 			[true]}]),
-    % io:format("SmallestC is: ~p~n", [SmallestC]),
     Smaller = ets:select(Tab,
 			 [{#z{p = '_', c = '$1'}, ['<', '$1', SmallestC],
 			   ['$_']}],
 			 1),
-    % io:format("Smaller looks like: ~p~n", [Smaller]),
     case Smaller of
-      '$end_of_table' ->
-	  %   io:format("Took EOT path~n"), Smallest;
-	  Smallest;
-      %   {[], _} -> SmallestC;
+      '$end_of_table' -> Smallest;
       _ -> findMinZ(Tab, Smaller)
     end.
