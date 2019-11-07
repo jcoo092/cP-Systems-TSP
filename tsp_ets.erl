@@ -8,7 +8,7 @@ run(Selector) ->
     Numnodes = case Selector of
 		 1 -> 5;
 		 2 -> 5;
-		 3 -> 9
+		 3 -> 10
 	       end,
     run(Selector, Numnodes).
 
@@ -48,7 +48,7 @@ optionTwo() ->
 
 optionThree(X) ->
     [#e{f = F, t = T, c = rand:uniform(10)}
-     || F <- lists:seq(1, X), T <- lists:seq(1, X), F /= T].
+     || F <- lists:seq(1, X), T <- lists:seq(1, X), F =/= T].
 
 explore(Tab) ->
     Ss = ets:lookup(Tab,
@@ -111,10 +111,10 @@ findMinZ(Tab) ->
 findMinZ(Tab, {[Smallest | _], _}) ->
     SmallestC = Smallest#z.c,
     ets:select_delete(Tab,
-		      [{#z{p = '_', c = '$1'}, ['>', '$1', SmallestC],
+		      [{#z{p = '_', c = '$1'}, [{'>', '$1', SmallestC}],
 			[true]}]),
     Smaller = ets:select(Tab,
-			 [{#z{p = '_', c = '$1'}, ['<', '$1', SmallestC],
+			 [{#z{p = '_', c = '$1'}, [{'<', '$1', SmallestC}],
 			   ['$_']}],
 			 1),
     case Smaller of
