@@ -2,8 +2,6 @@
 
 -include("ets_h.hrl").
 
-% -include_lib("stdlib/include/ms_transform.hrl").
-
 -export([run/1]).
 
 run(Selector) ->
@@ -23,7 +21,6 @@ run(Selector, Numnodes) ->
     Tab = ets:new(tsp,
 		  [duplicate_bag, {keypos, 1}, private]),
     ets:insert(Tab, Es),
-    % start(Tab, lists:seq(1, Numnodes)).
     ets:insert(Tab,
 	       #s{r = 1, u = ordsets:from_list(lists:seq(2, Numnodes)),
 		  p = [1], c = 0}),
@@ -53,23 +50,17 @@ optionThree(X) ->
     [#e{f = F, t = T, c = rand:uniform(10)}
      || F <- lists:seq(1, X), T <- lists:seq(1, X), F /= T].
 
-% start(Tab, [H | T]) ->
-%     ets:insert(Tab,
-% 	       #s{r = H, u = ordsets:from_list(T), p = [H], c = 0}),
-%     explore(Tab).
-
 explore(Tab) ->
-    Ss = ets:select(Tab,
-		    [{#s{_ = '_'}, [],
-		      ['$_']}]),    % actually probably want to use select replace on them...
+    % Ss = ets:lookup(Tab,
+    % 	    s),    % actually probably want to use select replace on them...
+    Ss = ets:take(Tab, s),
     case ordsets:is_empty((hd(Ss))#s.u) of
       false ->
 	  NewSs = lists:flatmap(fun (S) -> advanceS(Tab, S) end,
 				Ss),
-	  ets:select_delete(Tab,
-			    % ets:fun2ms(fun (#s{}) -> true end)),
-			    [{#s{r = '_', u = '_', p = '_', c = '_'}, [],
-			      [true]}]),
+	  %   ets:select_delete(Tab,
+	  % 		    [{#s{r = '_', u = '_', p = '_', c = '_'}, [],
+	  % 		      [true]}]),
 	  % essentially, rule 4
 	  ets:insert(Tab, NewSs),
 	  explore(Tab);
@@ -90,17 +81,11 @@ advanceS(Tab, S) ->
     P = hd(S#s.p),
     Es = lists:flatmap(fun (U) ->
 			       ets:select(Tab,
-					  %   ets:fun2ms(fun (#e{f = F, t = T,
-					  % 		     c = C})
-					  % 		     when F == P,
-					  % 			  T == U ->
-					  % 		     {T, C}
-					  % 	     end))
 					  [{#e{f = '$1', t = '$2', c = '$3'},
 					    [{'==', '$1', P}, {'==', '$2', U}],
 					    [{{'$2', '$3'}}]}])
 		       end,
-		       ordsets:from_list(Us)),
+		       ordsets:to_list(Us)),
     [S#s{u = ordsets:del_element(T, S#s.u), p = [T | S#s.p],
 	 c = S#s.c + C}
      || {T, C} <- Es].
@@ -109,10 +94,6 @@ returnToStart(Tab, S) ->
     P = hd(S#s.p),
     R = S#s.r,
     Es = ets:select(Tab,
-		    % ets:fun2ms(fun (#e{f = F, t = T, c = C})
-		    % 	       when F == P, T == R ->
-		    % 	       {T, C}
-		    %        end)),
 		    [{#e{f = '$1', t = '$2', c = '$3'},
 		      [{'==', '$1', P}, {'==', '$2', R}], [{{'$2', '$3'}}]}]),
     % There should be only one, but it'll come back as a list anyway
