@@ -1,0 +1,66 @@
+# Created by https://www.gitignore.io/api/erlang,windows,visualstudiocode
+# Edit at https://www.gitignore.io/?templates=erlang,windows,visualstudiocode
+
+### Erlang ###
+.eunit
+deps
+*.o
+*.beam
+*.plt
+erl_crash.dump
+ebin/*.beam
+rel/example_project
+.concrete/DEV_MODE
+.rebar
+
+### fsharp ###
+lib/debug
+lib/release
+Debug
+*.suo
+*.user
+obj
+bin
+/build/
+*.exe
+!.paket/paket.bootstrapper.exe
+/.ionide
+
+### VisualStudioCode ###
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+
+### VisualStudioCode Patch ###
+# Ignore all local history of files
+.history
+
+### Windows ###
+# Windows thumbnail cache files
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+
+# Dump file
+*.stackdump
+
+# Folder config file
+[Dd]esktop.ini
+
+# Recycle Bin used on file shares
+$RECYCLE.BIN/
+
+# Windows Installer files
+*.cab
+*.msi
+*.msix
+*.msm
+*.msp
+
+# Windows shortcuts
+*.lnk
+
+# End of https://www.gitignore.io/api/erlang,windows,visualstudiocode
