@@ -8,7 +8,7 @@ run(Selector) ->
     Numnodes = case Selector of
 		 1 -> 5;
 		 2 -> 5;
-		 3 -> 10
+		 3 -> 9
 	       end,
     run(Selector, Numnodes).
 
