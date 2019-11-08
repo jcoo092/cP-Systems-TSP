@@ -18,13 +18,14 @@ run(Selector, Numnodes) ->
 	   2 -> optionTwo();
 	   3 -> optionThree(Numnodes)
 	 end,
-    Tab = ets:new(tsp,
-		  [duplicate_bag, {keypos, 1}, private]),
-    ets:insert(Tab, Es),
-    ets:insert(Tab,
+    TabE = ets:new(e_funcs,
+		   [duplicate_bag, {keypos, #e.f}, private]),
+    ets:insert(TabE, Es),
+    TabS = ets:new(s_funcs, [duplicate_bag, private]),
+    ets:insert(TabS,
 	       #s{r = 1, u = ordsets:from_list(lists:seq(2, Numnodes)),
 		  p = [1], c = 0}),
-    explore(Tab).
+    explore(TabE, TabS).
 
 optionOne() ->
     [#e{f = 1, t = 2, c = 1}, #e{f = 1, t = 3, c = 3},
@@ -50,36 +51,40 @@ optionThree(X) ->
     [#e{f = F, t = T, c = rand:uniform(10)}
      || F <- lists:seq(1, X), T <- lists:seq(1, X), F =/= T].
 
-explore(Tab) ->
-    Ss = ets:lookup(Tab,
-		    s),    % actually probably want to use select replace on them...
+explore(TabE, TabS) ->
+    Ss = ets:lookup(TabS, s),
+    % io:format("Ss: ~p~n", [Ss]),
     case ordsets:is_empty((hd(Ss))#s.u) of
       false ->
-	  NewSs = lists:flatmap(fun (S) -> advanceS(Tab, S) end,
+	  NewSs = lists:flatmap(fun (S) -> advanceS(TabE, S) end,
 				Ss),
-	  ets:select_delete(Tab,
+	  ets:select_delete(TabS,
 			    [{#s{r = '_', u = '_', p = '_', c = '_'}, [],
 			      [true]}]),
 	  % essentially, rule 4
-	  ets:insert(Tab, NewSs),
-	  explore(Tab);
-      true -> finishUp(Tab)
+	  ets:insert(TabS, NewSs),
+	  explore(TabE, TabS);
+      true ->
+	  TabZ = ets:new(z_funcs,
+			 [duplicate_bag, {keypos, #z.c}, private]),
+	  finishUp(TabE, TabS, TabZ)
     end.
 
-finishUp(Tab) ->
-    Ss = ets:take(Tab, s),
-    lists:foreach(fun (S) -> makeZ(Tab, S) end, Ss),
-    MinZ = findMinZ(Tab),
-    ets:delete(Tab),
+finishUp(TabE, TabS, TabZ) ->
+    Ss = ets:take(TabS, s),
+    lists:foreach(fun (S) -> makeZ(TabE, TabZ, S) end, Ss),
+    ets:delete(TabS),
+    MinZ = findMinZ(TabE, TabZ),
+    ets:delete(TabE),
     io:format("Lowest cost is ~p~nShortest route is "
 	      "~p~n",
 	      [MinZ#z.c, lists:reverse(MinZ#z.p)]).
 
-advanceS(Tab, S) ->
+advanceS(TabE, S) ->
     Us = S#s.u,
     P = hd(S#s.p),
     Es = lists:flatmap(fun (U) ->
-			       ets:select(Tab,
+			       ets:select(TabE,
 					  [{#e{f = '$1', t = '$2', c = '$3'},
 					    [{'==', '$1', P}, {'==', '$2', U}],
 					    [{{'$2', '$3'}}]}])
@@ -89,10 +94,10 @@ advanceS(Tab, S) ->
 	 c = S#s.c + C}
      || {T, C} <- Es].
 
-makeZ(Tab, S) ->
+makeZ(TabE, TabZ, S) ->
     P = hd(S#s.p),
     R = S#s.r,
-    Es = ets:select(Tab,
+    Es = ets:select(TabE,
 		    [{#e{f = '$1', t = '$2', c = '$3'},
 		      [{'==', '$1', P}, {'==', '$2', R}], [{{'$2', '$3'}}]}]),
     % There should be at most one, but it'll come back as a list anyway
@@ -100,24 +105,24 @@ makeZ(Tab, S) ->
       [] -> [];
       [Head | _Tail] ->
 	  {T, C} = Head,
-	  ets:insert(Tab, #z{p = [T | S#s.p], c = S#s.c + C})
+	  ets:insert(TabZ, #z{p = [T | S#s.p], c = S#s.c + C})
     end.
 
-findMinZ(Tab) ->
-    findMinZ(Tab,
-	     ets:select(Tab, [{#z{p = '_', c = '_'}, [], ['$_']}],
+findMinZ(TabE, TabZ) ->
+    findMinZ(TabE, TabZ,
+	     ets:select(TabZ, [{#z{p = '_', c = '_'}, [], ['$_']}],
 			1)).
 
-findMinZ(Tab, {[Smallest | _], _}) ->
+findMinZ(TabE, TabZ, {[Smallest | _], _}) ->
     SmallestC = Smallest#z.c,
-    ets:select_delete(Tab,
+    ets:select_delete(TabZ,
 		      [{#z{p = '_', c = '$1'}, [{'>', '$1', SmallestC}],
 			[true]}]),
-    Smaller = ets:select(Tab,
+    Smaller = ets:select(TabZ,
 			 [{#z{p = '_', c = '$1'}, [{'<', '$1', SmallestC}],
 			   ['$_']}],
 			 1),
     case Smaller of
       '$end_of_table' -> Smallest;
-      _ -> findMinZ(Tab, Smaller)
+      _ -> findMinZ(TabE, TabZ, Smaller)
     end.
